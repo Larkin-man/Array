@@ -1,4 +1,4 @@
 # Array
-Классы: Массив, матрица, квадратная матрица. Сделаны на шаблонах
+Классы: Массив, матрица, квадратная матрица, двусвязный список. Сделаны на шаблонах.
 
-LARKINARRAY<>, LRMatrix<>, LRSquareMatrix<>
+LARKINARRAY<>, LRMatrix<>, LRSquareMatrix<>, LRList<>

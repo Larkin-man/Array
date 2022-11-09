@@ -1,207 +1,83 @@
-/*************************************************************\
-*  Larkin List       *
-\*************************************************************/
+/**********************************************************************\
+*   Äâóñâÿçíûé ñïèñîê ñ âîçìîæíîñòüþ ñîðòèðîâêè è ñîçäàíèÿ êîëëåêöèé.  *                                       *
+\**********************************************************************/
 #ifndef LRListH
 #define LRListH
-#define LRList Int
-/*
-//��������� � ��� int b[] = {1,2,3,4,}
-//��� ������ � ������������ []
-clear, delete, exchange ��� �������, insert, savetofile, ����������, addSort */
-class LRList
+#define PATTN
+#ifdef PATTN
+ #define TEMPLT template <class T>
+ #define IST <T>
+#else
+ #define TEMPLT
+ #define IST
+ #define T int
+#endif
+//---------------------------------------------------------------------------
+#ifndef ClassesHPP   
+enum TDuplicates { dupIgnore, dupAccept, dupError };
+#endif   
+
+TEMPLT class LRList
 {
-protected:
+private:
+   typedef int __fastcall (*TDCLSortCompare)(const T & Item1, const T & Item2); //Ïàðàìåòðû äëÿ ñîðòèðóþùåé ôóíêöèè   > 0 (positive)	Item1 is less than Item20	Item1 is equal to Item2< 0 (negative)	Item1 is greater than Item2//typedef int __fastcall (*TListSortCompare)(void * Item1, void * Item2);
+   /*/example for int:  > 0 (positive)	Item1 is less than Item20	Item1 is equal to Item2< 0 (negative)	Item1 is greater than Item2
+      int __fastcall CompareFunc(const int &Item1, const int &Item2)
+      {  if (Item1.A > Item2.A)
+            return 1;
+         if (Item1.A < Item2.A)
+            return -1;
+         return 0;      }     */
+   int FCount;
+   int Mid;
    struct Data
    {
-      int Store;
+      T Store;
       Data *next;
       Data *prev;
    }
-   *Begin, *End, *Linker;
+   *Begin, *End, *Linker, *FIterator;
 
-   int FCount;
-   int Mid;
-   int getCount()  {   return (FCount);    }
-   void setCount(int newCount)    { FCount = newCount; Mid = FCount/2;   }
-   void setStore(int newCount) { FCount = newCount; }
-   void DeleteLinks (Data *Item);
-   bool NumbFromZero;
-   int getStore(int index);
-   void concatenate(Data *parent, Data *Item);  
-
+protected:
+   Data* Get(int Index);         //Ïîëó÷èòü ýëåìåíò ñïèñêà ïî èíäåêñó
+   Data* CreateItem(const T& Item);
+   Data* Find(const T& Item);    //Èùåò ýëåìåíò ñïèñêà ïî îáúåêòó. NULL åñëè íåòó. |C|
+   void Erase(Data *ExcludedItem);
+   void SetCount(int NewCount)    { FCount = NewCount; Mid = FCount/2;   }
+   void Concatenate(Data *parent, Data *Item);
+   void Push(Data* Position, Data* Item); //Âñòàâëÿåò îáúåêò íà ìåòî Position, ñäâèãàÿ òîò è âñå ïîñëåäóþùèå. Count++
+   inline Data* GoForvard(Data* Item, int Pos);
+   inline Data* GoBack(Data* Item, int Pos);
+   TDCLSortCompare FCompareFunction;
+      void SetCompareFunction(TDCLSortCompare phs);
+   bool FSorted;                            
+      void SetSorted(bool Value);
+   TDuplicates FDuplicates;
+      void SetDuplicates(TDuplicates phs);
+   void QuickSort(Data *pLeft, Data *pRight);
 
 public:
-   LRList(int mem = 0); //�����������
-   void Add(int a);
-   __property int Count = { read=FCount, write=setCount };
-   void Clear();
-   //LRList& operator+ (LRList & A, LRList & B);   //������
-   LRList operator+ (LRList & A);   //��������
-   LRList operator+ ();               //�������
-   Data & Find ( int index );         
-   int & operator[](int position)   {   return Find(position).Store;    }
-
-
-   //��� ��� LRList& ?
-void Erase(int position)
-{
-   if ( FCount == 0 )
-      return;
-   if ( FCount == 1 )
-   {
-      Clear();
-      return;
-   }   
-   Data &DeletedItem = Find(position);
-   if ( position <= 0 )
-      Begin=Begin->next;
-   if ( position >= FCount-1)
-      End=End->prev;
-   concatenate(DeletedItem.prev,DeletedItem.next);   
-   delete &DeletedItem;
-   Count--;
-   
-}       
-   ~LRList()
-   {
-      ShowMessage("destructooor "+IntToStr(FCount));
-      Clear();
-   }
-};  //�����
-
-LRList::LRList(int mem)
-   {
-     // nizn = new int[3];
-      ShowMessage("constr run with "+IntToStr(mem));
-      //Qdialogs::ShowMessage("���������� �������");
-      //Store = mem;
-      FCount = 0;
-      Mid = 0;
-      NumbFromZero = true;
-      Begin = NULL;
-      End = NULL;
-   }
-
-void LRList::Add(int a)
-{
-   Count++;   
-   Data *pItem = new Data;
-   pItem->Store=a;
-   pItem->next=NULL;
-   pItem->prev=End;
-   if (Begin == NULL)
-      Begin = pItem;
-   else
-      End->next=pItem;
-   End=pItem;
-}
-
-   LRList::Data & LRList::Find ( int position )
-   {
-      if ( position > Mid )
-      {  //C �����
-         Linker = End;
-         for (int i=FCount-1;i>position;i--)
-            Linker=Linker->prev;
-      }
-      else
-      {  //C ������
-         Linker = Begin;
-         for (int i=0;i<position;i++)
-            Linker=Linker->next;
-      }
-      return *Linker;
-   }
-   int LRList::getStore(int position)
-   {
-      Data *Linker = Begin;
-      for (int i=0;i<position;i++)
-         Linker=Linker->next;
-      return (Linker->Store);
-   }
-
-void LRList::DeleteLinks (Data *Item)
-{               //������� ������� ������
-   if (Item == NULL) return;
-   if (Item->next != NULL)
-   {
-      DeleteLinks (Item->next);
-   }
-   delete Item;
-   Item=NULL;
-}
-
-void LRList::Clear()
-{
-   DeleteLinks(Begin);
-   FCount=0;
-   Mid=0;
-   Begin = NULL;
-   End = NULL;
-}
-
-
-LRList LRList::operator+ (LRList & A)
-{
-   LRList temp;
-   //this->Store=5;
-   return temp;
-}
-
-LRList& operator + (LRList & A, LRList & B)
-{
-   LRList *hp;
-   return *hp;
-}
-
-void LRList::concatenate(Data *parent, Data *Item)  //REMARKABLE!
-{              //������� ��������� ��� ��������
-     if (parent != NULL)
-          parent->next=Item;
-     if (Item!=NULL)
-          Item->prev=parent;
-}
-
-class LRList2 : public LRList
-{
-   public:
-   void DeleteLast()
-   {
-      if (End == NULL)
-         return;
-      if (FCount == 1)
-      {
-         Clear();
-         return;
-      }
-      End=End->prev;
-      delete End->next;
-      Count--;
-   }
+   LRList(); //Êîíñòðóêòîð
+   __property int Count = { read=FCount, write=SetCount };
+   int Add(const T& Item); //Äîáàâëÿåò îáúåêò â êîíåö ñïèñêà èëè åñëè Sorted òî â ïîçèöèþ. Âîçâðàùàåò èíäåêñ. Èíäåêñ ïåðâîãî - 0
+   int AddVector(T* Mas, int Count);   //AddVector - äîáàâèòü ìàññèâ â êîíåö. Sorted = false
+   void Insert(int Index, const T& Item); //Âñòàâëÿåò îáúåêò íà ìåòî Index, ñäâèãàÿ òîò è âñå ïîñëåäóþùèå
+   T& operator[](int Index);    //Âåðíóòü îáúåêò íà ïîçèöèè Index. [0..Count-1]
+   const T& operator[](int Index) const
+      {  return Get(Index)->Store;   }
+   //__property T Iterator = { read=GetIterator, write=SetIterator} ;
+   void InitIterator(int Index);
+   T* Iterator(void);
+   __property TDCLSortCompare CompareFunction = {read=FCompareFunction, write=SetCompareFunction}; //Ñðàâíèâàþùàÿ ôóíêöèÿ
+   __property bool Sorted = { read=FSorted, write=SetSorted }; //Çàïóñê ñîðòèðîâêè. Íóæíà ñðàâíèâàþùàÿ ôóíêöèÿ
+   __property TDuplicates Duplicates = {read=FDuplicates, write=SetDuplicates}; //Ðàáîòà ñ äóáëèêàòàìè. Íóæíà ñðàâíèâàþùàÿ ôóíêöèÿ
+   int IndexOf(const T& Item);   //Âîçâðàùàåò èíäåêñ ïåðâîãî ïîÿâëåíèå îáúåêòà. -1 åñëè íåò
+   void Exchange(int Index1, int Index2); //Ìåíÿåò ìåñòàìè ýëåìåíòû è óñòàíàâëèâàåò Sorted â false
+   T* First(void);
+	T* Last(void);
+   void Delete(int Index);       //Óäàëÿåò ñ íóëÿ. óìåíüøàåò countf íà 1 ïî èäåå ïàìÿòü íå î÷èùàåò . î÷èñòêà ïàìÿòè ýòî óìåíüøåíèå Capacity
+   void Remove(const T& Item);   //Óäàëÿåò ïåðâóþ êîïèþ, âîçâðàùàåò èíäåêñ ïåððåä óäàëåíèåì, óìåíüøàåò Count
+   void Clear(void);
+   ~LRList(void)  {  Clear(); } 
 };
-
-
-class PropertyExample {
-
-private:
-		int Fx,Fy;
-		float Fcells[100][100];
-	protected:
-		int  readX()          { return(Fx); }
-		void writeX(int newFx) { Fx = newFx;  }
-		double computeZ() { 
-				// Do some computation and return a floating point value...
-				return(0.0);
-		}
-
-		float cellValue(int row, int col) { return(Fcells[row][col]); }
-	public:
-
-__property int    X = { read=readX, write=writeX };
-		__property int    Y = { read=Fy };
-		__property double Z = { read=computeZ };
-		__property float Cells[int row][int col] = { read=cellValue };
-};
-
 #endif
- 
