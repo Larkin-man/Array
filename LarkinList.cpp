@@ -1,8 +1,8 @@
 /*************************************************************\
-* Двусвязный список                                           *
+* Двусвязный список v1.1                                      *
 \*************************************************************/
 #include <_null.h>
-#include <stdio.h>
+//#include <stdio.h>
 //#include <system.hpp>
 //#include <Dialogs.hpp>     //для ShowMessage
 //#include <dstring.h>
@@ -19,10 +19,10 @@ TEMPLT LRList IST::LRList()
    Mid = 0;
    Begin = NULL;
    End = NULL;
+   FCompareFunction = NULL;
    FSorted = false;
-   FDuplicates = dupAccept;
-   CompareFunction = NULL;
-   SortAccordingIncrease = true;
+   FDuplicates = dupAccept;   
+   FIterator = NULL;
 }
 //---------------------------------------------------------------------------
 //Get - Получить список по индексу
@@ -50,13 +50,16 @@ TEMPLT LRList IST::Data* LRList IST::Get(int Index)
 //Find - Ищет элемент списка по объекту. NULL если нету.
 TEMPLT LRList IST::Data* LRList IST::Find(const T& Item)
 {
+   if (FCompareFunction == NULL)
+      return NULL;
    for (Linker = Begin; Linker != NULL; Linker=Linker->next)
-      if (Linker->Store == Item)
+      if (FCompareFunction(Item, Linker->Store) == 0)
+      //if (&Linker->Store == &Item)
          return Linker;
    return NULL;
 }
 //---------------------------------------------------------------------------
-//Push - //Вставляет объекта перед Position, сдвигая тот и все последующие. Count++
+//Push - Вставляет объекта перед Position, сдвигая тот и все последующие. Count++
 TEMPLT void LRList IST::Push(Data* Position, Data* Item)
 {
    //Вставка объекта в начало
@@ -110,7 +113,7 @@ TEMPLT int LRList IST::Add(const T& Item)
    if (Sorted)
       for (Linker = Begin; Linker != NULL; Linker=Linker->next , pos++)
          //if (Item < Linker->Store)
-         if (SortCompare(Item, Linker->Store))
+         if (FCompareFunction(Item, Linker->Store) > 0)
          { //Вставить перед Линкером
             Push(Linker, NewItem);
             return pos;
@@ -163,35 +166,54 @@ TEMPLT int LRList IST::AddVector(T* Mas, int count)
 //---------------------------------------------------------------------------
 //Вернуть объект на позиции Index. [0..Count-1]
 TEMPLT inline T& LRList IST::operator[](int Index)
-//template <class T> T& LRList<T>::operator[](int Index)
 {
    return Get(Index)->Store;
 }
+/*TEMPLT const T& operator[](int Index) const
+{     return Get(Index)->Store;}              */
 //---------------------------------------------------------------------------
 //IndexOf - Возвращает индекс первого появление объекта
 TEMPLT int LRList IST::IndexOf(const T& Item)
 {
+   if (FCompareFunction == NULL)
+      return -1;
    int Idx = 0;
    for (Linker = Begin; Linker != NULL; Linker=Linker->next , Idx++)
-      if (Linker->Store == Item)
+      if (FCompareFunction(Item, Linker->Store) == 0)
+      //if (Linker->Store == Item)
          return Idx;
-   return -1;
+   return -1;   
 }
 //---------------------------------------------------------------------------
-//Insert - //Вставляет объект на мето Index, сдвигая тот и все последующие
+//Insert - Вставляет объект на мето Index, сдвигая тот и все последующие
 TEMPLT void LRList IST::Insert(int Index, const T& Item)
 {
    Push(Get(Index), CreateItem(Item));
    Sorted = false;
 }
 //---------------------------------------------------------------------------
-//Serted = Value : SetSorted
+//SetCompareFunction - Установка сравнивающей функции
+TEMPLT void LRList IST::SetCompareFunction(TDCLSortCompare phs)
+{
+   if (phs == NULL)
+   {
+      FSorted = false;
+      FDuplicates = dupAccept;
+   }
+   //При изменении условий нужно запустить по новой if sorted == true
+   FCompareFunction = phs;
+}
+//---------------------------------------------------------------------------
+//SetSorted - Запуск сортировки и автосоритровки
 TEMPLT void LRList IST::SetSorted(bool Value)
 {
    if (Value)
    {
-      //if (CompareFunction == NULL)
-      //{           FSorted = false;          return;       }
+      if (FCompareFunction == NULL)
+      {
+         FSorted = false;
+         return;
+      }
       if (FCount > 1)
       {
          QuickSort(Begin, End);
@@ -201,30 +223,29 @@ TEMPLT void LRList IST::SetSorted(bool Value)
    FSorted = Value;
 }
 //---------------------------------------------------------------------------
-TEMPLT bool LRList IST::GetSorted(void)
+//SetDuplicates - Работа с дубликатами
+TEMPLT void LRList IST::SetDuplicates(TDuplicates phs)
 {
-   //if (CompareFunction == NULL)
-   //   FSorted = false;
-   return FSorted;
+   if ( (phs == dupIgnore)||(phs == dupError) )
+   {
+      if (FCompareFunction == NULL)
+      {
+         FDuplicates = dupAccept;
+         return;
+      }
+      //Тут должен быть запуск удаления дубликатов
+   }
+   FDuplicates = phs;
 }
-//---------------------------------------------------------------------------
-//Быстрая сортировка
-TEMPLT bool LRList IST::SortCompare(const T & Item1, const T & Item2)
-{
-   if (CompareFunction == NULL)
-      if (SortAccordingIncrease)
-         return (Item1 < Item2);
-      else
-         return (Item1 > Item2);
-   return CompareFunction(Item1, Item2);
-}
+//--------------------------------------------------------------------------- */
+//QuickSort - Быстрая сортировка
 TEMPLT void LRList IST::QuickSort(Data *pLeft, Data *pRight)
 {
-   //if (CompareFunction == NULL)
-   //   return;
+   if (FCompareFunction == NULL)
+      return;
 	Data *pStart;
 	Data *pCurrent;
-	int nCopyInteger;
+	T nCopyInteger;
 	// сортировка окончена - выход
 	if (pLeft == pRight) return;
 	// установка двух рабочих указателей - Start и Current
@@ -234,7 +255,7 @@ TEMPLT void LRList IST::QuickSort(Data *pLeft, Data *pRight)
 	while (1)
 	{
 		//if (pStart->Store < pCurrent->Store)
-      if (SortCompare(pStart->Store, pCurrent->Store))
+      if (FCompareFunction(pStart->Store, pCurrent->Store) > 0) //точно >.
 		{
 			nCopyInteger = pCurrent->Store;
 			pCurrent->Store = pStart->Store;
@@ -279,9 +300,10 @@ TEMPLT void LRList IST::Clear(void)
 	}
 	Begin = NULL; End = NULL;
    FCount = 0;   Mid = 0;
+   FIterator = NULL;
 }
 //---------------------------------------------------------------------------
-//Сoncatenate - Соединяет два элемента //REMARKABLE!
+//Сoncatenate - Соединяет два элемента
 TEMPLT void LRList IST::Concatenate(Data *parent, Data *Item)
 {
    if (parent != NULL)
@@ -304,7 +326,7 @@ TEMPLT void LRList IST::Erase(Data *ExcludedItem)
    Count--;
 }
 //---------------------------------------------------------------------------
-//Delete
+//Delete - Удаляет элемент с 0
 TEMPLT void LRList IST::Delete(int Index)
 {
    if ( FCount == 0 )
@@ -323,23 +345,20 @@ TEMPLT void LRList IST::Remove(const T& Item)
    Erase(Find(Item));
 }
 //---------------------------------------------------------------------------
-//GetIterator -
-TEMPLT T  LRList IST::GetIterator(void)
+//Iterator - Возвращает текущий элемент и переходит к следующему
+TEMPLT T* LRList IST::Iterator(void)
 {
    if (FIterator == NULL)
       return NULL;
-   T Curr = FIterator->Store;
+   T* Curr = &FIterator->Store;
    FIterator = FIterator->next;
    return Curr;
 }  
 //---------------------------------------------------------------------------
-//SetIterator - Установить в NULL чтобы начать
-TEMPLT void LRList IST::SetIterator(T Value)
+//SetIterator - Установить в 0 чтобы начать
+TEMPLT void LRList IST::InitIterator(int Index)
 {
-   if (Value == NULL)
-      FIterator = Begin;
-   else
-      FIterator = Find(Value);
+   FIterator = Get(Index);
 }
 //---------------------------------------------------------------------------
 //Exchange - Поменять местами элементы
@@ -358,15 +377,20 @@ TEMPLT void LRList IST::Exchange(int Index1, int Index2)
 }
 //---------------------------------------------------------------------------
 //First - Указатель на первый
-TEMPLT T& LRList IST::First(void)
+TEMPLT T* LRList IST::First(void)
 {
-   return operator[](0);
+   if (FCount > 0)
+      return &Begin->Store;
+   return NULL;
 }
 //---------------------------------------------------------------------------
 //First - Указатель на последний
-TEMPLT T& LRList IST::Last(void)
+TEMPLT T* LRList IST::Last(void)
 {
-   return operator[](FCount-1);
+   //return operator[](FCount-1);
+   if (FCount > 0)
+      return &End->Store;
+   return NULL;
 }
 //---------------------------------------------------------------------------
 //GoForvard - Двигать указатель вперед
@@ -393,6 +417,4 @@ TEMPLT inline LRList IST::Data* LRList IST::GoBack(Data* Item, int Pos)
    return Link;
 }
 //---------------------------------------------------------------------------
-//---------------------------------------------------------------------------
-
 #pragma package(smart_init)
