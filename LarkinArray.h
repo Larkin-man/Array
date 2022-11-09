@@ -1,16 +1,17 @@
-//Динамический массив. v1.0 При создании элементов конструкторы не вызываются!
+//Динамический массив. v1.1 При создании элементов конструкторы не вызываются!
 //Опции, задаются командами #define:
 //Для простых типов (int, double etc):
 //#define LRArraySimpleType
 //Автосортировка для простых типов:
 //#define LRArrayAutoSort
 //Создание коллекции (игнорируются добавление дубликата):
-//Define LRArrayCollection
+//#define LRArrayCollection
 //---------------------------------------------------------------------------
 #undef LARKINARRAY
+#undef LRArrayBasic
 #ifdef LRArrayAutoSort
    #ifndef LRArraySimpleType
-      #error Version 1.0 does not contain sorting for compound types. Define LRArraySimpleType
+      #error This version does not contain sorting for compound types. Define LRArraySimpleType
    #endif
    #ifdef LRArrayCollection
       #ifndef LarkinCollectionSortH
@@ -33,6 +34,7 @@
       #ifndef LarkinArrayH
          #define LarkinArrayH
          #define LARKINARRAY LRDynArray
+         #define LRArrayBasic
       #endif
    #endif
 #endif
@@ -41,10 +43,9 @@
    #ifndef LRArraySimpleType
       #include <new>
    #endif
-#include <alloc.h>
-#include <mem.h>        
+
 //---------------------------------------------------------------------------
-#define TYPEDf
+#define TYPED
 #ifdef TYPED
  #define TEMPLT template< class T >
  #define T T
@@ -65,14 +66,16 @@ private:
    LARKINARRAY&operator=(const LARKINARRAY&) ;
    #ifdef LRArrayAutoSort
       #ifdef LRArraySimpleType
-      bool SortingAccordIncrease;
+      bool FSortingAccordIncrease;
       #endif
    #endif
                           
 protected:
    //Выделить память
 	void SetCapacity(int newCapacity)
-	{                
+	{
+      if (newCapacity < 0)
+         return;           
 		if ( Data )
 			Data = (T*)realloc( Data, newCapacity * sizeof(T) );
 		else
@@ -81,6 +84,33 @@ protected:
 		FCapacity = newCapacity;
 	}
 
+   void SetCount(int newCount)
+   {
+      #ifdef LRArraySimpleType
+      if (newCount > FCount)
+         EnsureCapacity(newCount);
+      else if (newCount < 0)
+         newCount = 0;
+      FCount = newCount;
+      #else
+      if (newCount < FCount)
+      {
+         if (newCount < 0)
+         newCount = 0;
+         while (FCount > newCount)
+			   PopBack();
+      }
+      else if (newCount > FCount)
+      {
+         EnsureCapacity(newCount);
+         T temp;
+         for (int i=FCount; i<newCount; ++i)
+            ConstructCopy(i, temp);
+         FCount = newCount;
+      }
+      #endif
+   }
+
 	//Скопировать часть массива после idx на num : направо+ налево-
 	void MoveElements(int idx, int num)
 	{
@@ -88,44 +118,6 @@ protected:
 		if (numBytesToCopy > 0)
 			memmove(&Data[idx+num], &Data[idx], numBytesToCopy);
 	}
-         
-   int AddCheck(const T& el)
-   {
-      if (FCount == 0)
-         return 0;
-      int Pos = 0;
-      if (AutoSort)
-      {
-         #ifdef LRArraySimpleType
-         if (SortingAccordIncrease)
-         {
-            for (; Pos < FCount; Pos++)
-               if (Data[Pos] >= el)
-                  break;
-         }
-         else
-         {
-            for (; Pos < FCount; Pos++)
-               if (Data[Pos] <= el)
-                  break;
-         }
-         #endif
-      }
-      if (Duplicates != dupAccept)
-      {
-         
-      }
-      if ( (AutoSort)&&(Duplicates != dupAccept) )
-      {
-         for (int i=0; i < FCount; i++)
-         {
-            if (Data[i] == el)
-               return i;
-         }
-
-      }
-   }
-   //*/
 
 public:
    //Конструктор для LRDynArray и LRCollection с одним параметром
@@ -133,7 +125,7 @@ public:
    #ifdef LRArrayAutoSort
    LARKINARRAY(bool sortingAccordingIncrease, int capacity = 0)
    {
-      SortingAccordIncrease = sortingAccordingIncrease;
+      FSortingAccordIncrease = sortingAccordingIncrease;
    #else
 	LARKINARRAY(int capacity = 0)
 	{
@@ -148,51 +140,120 @@ public:
 
    ~LARKINARRAY()
 	{
-      #ifdef LRArraySimpleType
-      FCount = 0;
-      #else
-      Erase();
-      #endif
-      if ( Data )
-		{
-			free( Data );
-         //delete [] Data;
-		}
-
+      Free();
 	}
-   __property int Capacity = { read=FCapacity, write=SetCapacity };
-   __property int Count = { read=FCount };
-   
-	// Доступ к элементам
-	T& operator[]( int i ) { return Data[i]; }
-	const T& operator[]( int i ) const { return Data[i]; }
-	// Базовый указатель
-	T *Base() { return Data; }
-	const T *Base() const { return Data; }
-	// Первый и последний элементы
-	T& First() { return Data[0]; }
-	T& Last() { return Data[FCount-1]; }
-	const T& First() const { return Data[0]; }
-	const T& Last() const { return Data[FCount-1]; }
-	bool Empty() const { return FCount == 0; } // Пустой?
 
    #ifdef LRArrayAutoSort
+   //Добавить элемент в массив
    void Add(const T& el)
 	{
+      int Pos = 0;
+      if (FSortingAccordIncrease)
+      {
+         for (; Pos < FCount; Pos++)
+         {
+            #ifdef LRArrayCollection
+            if (Data[Pos] == el)
+               return ;
+            #endif
+            if (Data[Pos] > el)
+               break;
+         }
+         if (Pos == FCount-1)
+         {
+            if (el > Data[Pos])
+               Pos++;
+         }
+      }
+      else
+      {
+         for (; Pos < FCount; Pos++)
+         {
+            #ifdef LRArrayCollection
+            if (Data[Pos] == el)
+               return ;
+            #endif
+            if (Data[Pos] < el)
+               break;
+         }
+         if (Pos == FCount-1)
+         {
+            if (el < Data[Pos])
+               Pos++;
+         }         
+      }
 		EnsureCapacity(FCount+1);
-		ConstructCopy(FCount, el);
+      if (Pos < FCount) 
+		   MoveElements(Pos, 1);
+      //Data[idx] = el;
+		ConstructCopy(Pos, el);
 		FCount++;
 	}
    #else
-	//Добавить элемент в конец массива
+   //Добавить элемент в конец массива
 	void PushBack(const T& el)
 	{
+      #ifdef LRArrayCollection
+      if (Find(el) != -1)
+         return;
+      #endif
 		EnsureCapacity(FCount+1);
 		ConstructCopy(FCount, el);
 		FCount++;
-	}
+	}   
    #endif
 
+   __property int Count = { read=FCount, write=SetCount };
+   __property int Capacity = { read=FCapacity, write=SetCapacity };
+
+   //Убедимся, что памяти хватит для хранения по крайней мере этого числа элементов.
+	void EnsureCapacity(int capacity)
+	{
+		if ( capacity > FCapacity )
+		{
+			//int newCapacity = FCapacity;
+			if ( FCapacity == 0 )
+				FCapacity = 4;
+			while ( FCapacity < capacity )
+				FCapacity *= 2;
+			SetCapacity( FCapacity );
+		}
+	}
+	// Доступ к элементам
+   #ifdef LRArrayBasic
+	T& operator[]( int i ) { return Data[i]; }
+   #endif
+	const T& operator[]( int i ) const { return Data[i]; }
+	// Базовый указатель
+	//T *Base() { return Data; }
+	const T *Base() const { return Data; }
+   #ifdef LRArrayBasic
+	// Первый и последний элементы
+	T& First() { return Data[0]; }
+	T& Last() { return Data[FCount-1]; }
+   #endif
+	const T& First() const { return Data[0]; }
+	const T& Last() const { return Data[FCount-1]; }
+	bool Empty() const { return FCount == 0; } // Пустой?
+   void Invert()
+   {
+      T temp;// = //(T*)malloc( sizeof(T) );
+      for (int i=0; i<FCount/2; ++i)
+      {
+         temp = Data[i];
+         Data[i] = Data[FCount - i - 1];
+         Data[FCount - i - 1] = temp;
+      }
+      #ifdef LRArrayAutoSort
+      FSortingAccordIncrease = !FSortingAccordIncrease;
+      #endif
+
+   }
+
+   #ifdef LRArrayAutoSort
+   __property bool SortingAccordIncrease = { read=FSortingAccordIncrease };
+   protected:
+   #endif
    void ConstructCopy(int i, const T& el)
 	{
       #ifdef LRArraySimpleType
@@ -201,23 +262,20 @@ public:
       new  (&Data[i]) T( el );  //Конструктор не вызывается
       #endif
 	}
-	void PopBack() // Удалить последний элемент
-	{
-      #ifndef LRArraySimpleType
-      Destruct(FCount-1);
-      #endif
-		FCount--;
-	}
+   #ifdef LRArrayAutoSort
+   public:
+   #endif
    #ifndef LRArraySimpleType
-   void Destruct(int i)
-	{
-		Data[i].~T();
-	}
+   void Destruct(int i)	{		Data[i].~T();	}
    #endif
    //Добавить элемент в произвольное место
    #ifndef LRArrayAutoSort
 	void Insert(int idx, const T& el)
 	{
+      #ifdef LRArrayCollection
+      if (Find(el) != -1)
+         return;
+      #endif
       if (idx < 0)
          idx = 0;
       else if (idx > FCount)
@@ -230,31 +288,7 @@ public:
 	}
    #endif
 
-	// Удалить произвольный элемент
-	void Remove(int idx)
-	{
-      if (FCount <= 0)
-      {
-         FCount = 0;
-         return;
-      }
-      if (idx < 0)
-         idx = 0;
-      else if (idx > FCount)
-         idx = FCount;
-		Destruct(idx);
-		MoveElements(idx+1, -1);
-		FCount--;
-	}
-
-	//Очистить!
-	void Erase()
-	{
-		while (FCount > 0)
-			PopBack();
-	}            
-
-	//Найти индекс элемента
+   //Найти индекс элемента
 	int Find(const T& el) const
 	{
 		for (int i=0; i < FCount; i++)
@@ -263,32 +297,68 @@ public:
 				return i;
 		}
 		return -1;
-	}  
-
-	//Найти и уничтожить!
-	void RemoveElement(const T& el)
+	}
+   
+   // Удалить последний элемент
+   void PopBack()
 	{
-		int idx = Find( el );
-		if (idx >= 0)
-			Remove( idx );
-	}         
-
-	//Убедимся, что памяти хватит для хранения по крайней мере этого числа элементов.
-	inline void EnsureCapacity(int capacity)
+      if (FCount == 0)
+         return;
+      #ifndef LRArraySimpleType
+      Destruct(FCount-1);
+      #endif
+		FCount--;
+	}
+	//Удалить произвольный элемент
+	void Delete(int idx)
 	{
-		if ( capacity > FCapacity )
-		{
-			int newCapacity = FCapacity;
-			if ( newCapacity == 0 )
-				newCapacity = 4;
-			while ( newCapacity < capacity )
-				newCapacity *= 2;    
-			SetCapacity( newCapacity );
-		}
+      if (FCount <= 0)
+      {
+         FCount = 0;
+         return;
+      }
+      if (idx < 0)
+         return;
+      else if (idx >= FCount)
+         return;
+      #ifndef LRArraySimpleType
+		Destruct(idx);
+      #endif
+		MoveElements(idx+1, -1);
+		FCount--;
 	}
 
+   //Найти и уничтожить!
+	void Remove(const T& el)
+	{
+		Delete( Find(el) );
+	}
+   
+   //Очистить список без освобождения памяти
+   void Clear()
+   {
+      SetCount(0);
+   }
+	//Очистить память
+	void Free()
+	{
+      #ifdef LRArraySimpleType
+      FCount = 0;
+      #else
+      while (FCount > 0)
+			PopBack();
+      #endif
+      if ( Data )
+		{
+			free( Data );
+         //delete [] Data;
+		}
+      Data = 0;
+      FCapacity = 0;
+	}
 };
 #endif
 #undef LRArraySimpleType
 #undef LRArrayAutoSort
 #undef LRArrayCollection
+#undef LRArrayBasic
